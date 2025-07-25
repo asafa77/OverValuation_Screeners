@@ -1,0 +1,64 @@
+# ▶️ Step 0: install dependencies
+!pip install yfinance tqdm --quiet
+
+# ▶️ Step 1: imports
+import yfinance as yf
+import pandas as pd
+from tqdm import tqdm
+
+# Optional: show all rows in Colab output
+pd.set_option('display.max_rows', None)
+
+# ▶️ Step 2: build S&P 500 ticker list
+sp500 = pd.read_html(
+    "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+    header=0
+)[0]
+symbols = [s.replace('.', '-') for s in sp500.Symbol]  # e.g. BRK.B → BRK-B
+
+# ▶️ Step 3: scan for stocks with current TTM P/E ≥ 120% of their 12‑mo average
+THRESHOLD = 1.2  # 1.2× means “20% above” the 12‑month mean
+
+results = []
+for sym in tqdm(symbols, desc="Scanning S&P 500"):
+    try:
+        t = yf.Ticker(sym)
+        info = t.info
+        
+        # get trailing EPS
+        eps = info.get("trailingEps", None)
+        if not eps or eps <= 0:
+            continue
+        
+        # fetch last 13 month‑end closes (so we have 12 full months)
+        pr = (t.history(period="13mo", interval="1mo")['Close']
+                .dropna())
+        if len(pr) < 12:
+            continue
+        
+        # compute average and current price
+        avg_price     = pr.iloc[-12:].mean()
+        current_price = pr.iloc[-1]
+        
+        # compute P/Es
+        avg_pe  = avg_price   / eps
+        curr_pe = current_price / eps
+        
+        # keep if current P/E is at least 20% above its 12‑mo mean
+        if curr_pe >= THRESHOLD * avg_pe:
+            results.append({
+                "Ticker":        sym,
+                "Current P/E":   round(curr_pe, 2),
+                "Avg 12mo P/E":  round(avg_pe,   2),
+                "% Above Avg":   round((curr_pe - avg_pe) / avg_pe * 100, 2)
+            })
+    except Exception:
+        continue
+
+# ▶️ Step 4: display results
+df = pd.DataFrame(results)
+if not df.empty:
+    df = df.sort_values("% Above Avg", ascending=False).reset_index(drop=True)
+    display(df)
+else:
+    print("No S&P 500 stocks found with current TTM P/E ≥ 20% above their 12‑month average.")
