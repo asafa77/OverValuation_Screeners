@@ -1,7 +1,15 @@
-# ▶️ Step 0: install dependencies
+# You can customize exactly how rich you want your screen to be by tweaking the single THRESHOLD variable in the script. For example:
+THRESHOLD = 1.1 will flag stocks trading 10% above their 12‑month average P/E
+THRESHOLD = 1.2 will flag stocks trading 20% above (the default)
+THRESHOLD = 1.3 will flag stocks trading 30% above
+THRESHOLD = 1.4 will flag stocks trading 40% above, and so on
+Just set THRESHOLD to 1 + X/100 (where X is the percent above the mean you want) and rerun.
+
+
+# Step 0: install dependencies
 !pip install yfinance tqdm --quiet
 
-# ▶️ Step 1: imports
+# Step 1: imports
 import yfinance as yf
 import pandas as pd
 from tqdm import tqdm
@@ -9,14 +17,14 @@ from tqdm import tqdm
 # Optional: show all rows in Colab output
 pd.set_option('display.max_rows', None)
 
-# ▶️ Step 2: build S&P 500 ticker list
+# Step 2: build S&P 500 ticker list
 sp500 = pd.read_html(
     "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
     header=0
 )[0]
 symbols = [s.replace('.', '-') for s in sp500.Symbol]  # e.g. BRK.B → BRK-B
 
-# ▶️ Step 3: scan for stocks with current TTM P/E ≥ 120% of their 12‑mo average
+# Step 3: scan for stocks with current TTM P/E ≥ 120% of their 12‑mo average
 THRESHOLD = 1.2  # 1.2× means “20% above” the 12‑month mean
 
 results = []
@@ -55,7 +63,7 @@ for sym in tqdm(symbols, desc="Scanning S&P 500"):
     except Exception:
         continue
 
-# ▶️ Step 4: display results
+# Step 4: display results
 df = pd.DataFrame(results)
 if not df.empty:
     df = df.sort_values("% Above Avg", ascending=False).reset_index(drop=True)
